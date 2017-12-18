@@ -67,11 +67,19 @@ function __fish_git_remotes
 end
 
 function __fish_git_modified_files
-    # git diff --name-only hands us filenames relative to the git toplevel
+    # git status --porcelain hands us filenames relative to the git toplevel
     set -l root (command git rev-parse --show-toplevel ^/dev/null)
+    # Depending on whether or not `--staged` was passed as an argument, we
+    # either filter the status output on non-blank first or second column.
+    set -l rx '^.[^ ] (.*)$' # non-blank second column
+    if test "$argv[1]" = "--staged"
+        # non-blank first column
+        set rx '^[^ ]. (.*)$'
+    end
+    set files (string replace -fr -- "$rx" '$1' (git status --porcelain --untracked-files=no ^/dev/null))
     # Print files from the current $PWD as-is, prepend all others with ":/" (relative to toplevel in git-speak)
     # This is a bit simplistic but finding the lowest common directory and then replacing everything else in $PWD with ".." is a bit annoying
-    string replace -- "$PWD/" "" "$root/"(command git diff --name-only $argv ^/dev/null) | string replace "$root/" ":/"
+    string replace -- "$PWD/" "" "$root/"$files | string replace -- "$root/" ":/"
 end
 
 function __fish_git_add_files
